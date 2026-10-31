@@ -1,5 +1,5 @@
 // YT-Music Vault Service Worker (Network-First to always serve latest code)
-const CACHE_NAME = 'ytmusic-vault-v4';
+const CACHE_NAME = 'ytmusic-vault-v5';
 
 self.addEventListener('install', event => {
   self.skipWaiting();
