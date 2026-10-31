@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>YT-Music Vault - คลังเพลงส่วนตัว</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#030303">
+  <link rel="stylesheet" href="/style.css?v=4">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- YouTube Official IFrame API -->
+  <script src="https://www.youtube.com/iframe_api"></script>
+</head>
+<body data-theme="red">
+
+  <div class="app-container">
+    <!-- DESKTOP SIDEBAR -->
+    <aside class="sidebar">
+      <div class="logo-area">
+        <svg class="logo-icon" viewBox="0 0 24 24">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
+        </svg>
+        <span>Music Vault</span>
+      </div>
+
+      <nav class="nav-links">
+        <div class="nav-item active" data-page="home">
+          <i data-lucide="home"></i>
+          <span>หน้าแรก</span>
+        </div>
+        <div class="nav-item" data-page="explore">
+          <i data-lucide="compass"></i>
+          <span>ค้นพบ & มาแรง</span>
+        </div>
+        <div class="nav-item" data-page="library">
+          <i data-lucide="library"></i>
+          <span>คลังเพลงของฉัน</span>
+        </div>
+        <div class="nav-item" data-page="settings">
+          <i data-lucide="settings"></i>
+          <span>ตั้งค่า & ไดรฟ์</span>
+        </div>
+      </nav>
+
+      <!-- Sidebar Quick Playlists -->
+      <div style="border-top: 1px solid var(--border-color); margin: 12px 0 8px; padding-top: 8px;">
+        <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-dim); font-weight: 700; padding: 4px 14px 8px;">เพลย์ลิสต์</div>
+        <div id="sidebar-playlists-list" style="display: flex; flex-direction: column; gap: 4px;">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <div class="sidebar-storage-badge">
+        <div class="storage-title">
+          <i data-lucide="hard-drive" style="width: 14px; height: 14px;"></i>
+          <span>Local Vault</span>
+        </div>
+        <span id="sidebar-song-count">0 เพลงในคลัง</span>
+      </div>
+    </aside>
+
+    <!-- MAIN VIEWPORT -->
+    <main class="main-wrapper">
+      <!-- TOP HEADER -->
+      <header class="top-header">
+        <div class="search-box-wrapper">
+          <i data-lucide="search" class="search-icon-left"></i>
+          <input type="text" id="main-search-input" class="search-input" placeholder="ค้นหาเพลง, ศิลปิน, หรืออัลบั้มจาก YouTube...">
+          <button id="clear-search-btn" class="clear-search-btn">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+
+        <div class="header-actions">
+          <button id="btn-ai-dj" class="theme-pill" style="border-color: rgba(168, 85, 247, 0.4); background: rgba(168, 85, 247, 0.12); color: #c084fc;" title="ขอเพลงตามอารมณ์ด้วย AI DJ">
+            <i data-lucide="sparkles"></i>
+            <span>AI DJ</span>
+          </button>
+
+          <button id="theme-toggle-btn" class="theme-pill" title="เปลี่ยนธีมสี">
+            <i data-lucide="palette"></i>
+            <span id="theme-label">YT Red</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- CATEGORY CHIPS BAR -->
+      <div class="category-chips-bar" id="category-chips">
+        <button class="chip active" data-cat="thai">เพลงไทยฮิต</button>
+        <button class="chip" data-cat="global">Global Hits</button>
+        <button class="chip" data-cat="chill">ฟังสบาย ชิลๆ</button>
+        <button class="chip" data-cat="focus">Lofi โฟกัส</button>
+        <button class="chip" data-cat="workout">Workout บูสต์พลัง</button>
+      </div>
+
+      <!-- DYNAMIC CONTENT SCROLL -->
+      <div class="content-scroll" id="content-scroll">
+        <!-- 1. HOME VIEW -->
+        <section id="view-home" class="page-view">
+          <div class="section-title">
+            <span>เพลย์ลิสต์ของคุณ</span>
+          </div>
+          <div class="music-grid" id="home-playlists-grid" style="margin-bottom: 32px;">
+            <!-- Dynamically populated with "เพลงๆ" -->
+          </div>
+
+          <div class="section-title">
+            <span>เพลงแนะนำ & มาแรง</span>
+          </div>
+          <div class="music-grid" id="trending-grid">
+            <!-- Dynamically populated -->
+          </div>
+
+          <div class="section-title">
+            <span>ฟังต่อจากที่ค้างไว้</span>
+          </div>
+          <div class="song-list-table" id="recent-list">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+
+        <!-- 2. SEARCH RESULTS VIEW -->
+        <section id="view-search" class="page-view" style="display: none;">
+          <div class="section-title">
+            <span id="search-title-label">ผลการค้นหาจาก YouTube</span>
+          </div>
+          <div class="song-list-table" id="search-results-table">
+            <!-- Results table -->
+          </div>
+        </section>
+
+        <!-- 3. LIBRARY / PLAYLISTS VIEW -->
+        <section id="view-library" class="page-view" style="display: none;">
+          <div class="sheet-tab-nav" style="margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+            <button class="sheet-tab-btn active library-subtab-btn" data-libtab="playlists">เพลย์ลิสต์ (Playlists)</button>
+            <button class="sheet-tab-btn library-subtab-btn" data-libtab="downloads">เพลงที่ดาวน์โหลดไว้ (Offline Vault)</button>
+          </div>
+
+          <!-- Playlists sub-view -->
+          <div id="lib-pane-playlists">
+            <div class="section-title">
+              <span>เพลย์ลิสต์ของฉัน</span>
+              <button id="refresh-playlists-btn" class="action-btn" title="รีเฟรช">
+                <i data-lucide="refresh-cw"></i>
+              </button>
+            </div>
+            <div class="music-grid" id="playlists-grid">
+              <!-- Playlists cards -->
+            </div>
+          </div>
+
+          <!-- Playlist Details View (When clicked into a playlist) -->
+          <div id="lib-pane-playlist-detail" style="display: none;">
+            <button id="btn-back-to-playlists" class="chip" style="margin-bottom: 16px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+              <i data-lucide="arrow-left" style="width: 16px; height: 16px;"></i>
+              <span>กลับไปหน้ารวมเพลย์ลิสต์</span>
+            </button>
+
+            <!-- Playlist Banner -->
+            <div style="display: flex; gap: 24px; align-items: center; margin-bottom: 24px; background: var(--bg-card); padding: 20px; border-radius: 16px; border: 1px solid var(--border-color); flex-wrap: wrap;">
+              <div style="width: 140px; height: 140px; border-radius: 12px; overflow: hidden; flex-shrink: 0; box-shadow: 0 8px 24px rgba(0,0,0,0.5);">
+                <img id="pl-detail-thumb" src="" alt="cover" style="width: 100%; height: 100%; object-fit: cover;">
+              </div>
+              <div style="flex: 1; min-width: 220px;">
+                <div style="font-size: 0.8rem; text-transform: uppercase; color: var(--accent); font-weight: 700; letter-spacing: 1px; margin-bottom: 4px;">PLAYLIST</div>
+                <h1 id="pl-detail-name" style="font-size: 1.8rem; font-weight: 800; margin-bottom: 6px;">เพลงๆ</h1>
+                <p id="pl-detail-desc" style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 16px;">263 เพลง</p>
+
+                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                  <button id="btn-pl-play-all" class="chip" style="background: var(--text-main); color: var(--bg-base); font-weight: 700; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <i data-lucide="play" style="width: 16px; height: 16px; fill: currentColor;"></i>
+                    <span>เล่นทั้งหมด</span>
+                  </button>
+                  <button id="btn-pl-shuffle" class="chip" style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <i data-lucide="shuffle" style="width: 16px; height: 16px;"></i>
+                    <span>สุ่มเล่น</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Playlist Songs List -->
+            <div class="song-list-table" id="playlist-songs-table">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Offline downloads sub-view -->
+          <div id="lib-pane-downloads" style="display: none;">
+            <div class="section-title">
+              <div>
+                <span>คลังเพลงออฟไลน์ (Offline Vault)</span>
+                <p style="font-size: 0.85rem; color: var(--text-muted); font-weight: normal; margin-top: 4px;">
+                  เพลงที่ถูกดาวน์โหลดและเก็บไว้ในเครื่อง เล่นได้ทันทีแม้ไม่มีเน็ต
+                </p>
+              </div>
+              <button id="refresh-library-btn" class="action-btn" title="รีเฟรชคลัง">
+                <i data-lucide="refresh-cw"></i>
+              </button>
+            </div>
+            <div class="song-list-table" id="library-table">
+              <!-- Offline songs list -->
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. SETTINGS VIEW -->
+        <section id="view-settings" class="page-view" style="display: none;">
+          <div class="section-title">
+            <span>การตั้งค่าระบบ & ไดรฟ์</span>
+          </div>
+          <div style="max-width: 600px; display: flex; flex-direction: column; gap: 20px;">
+            <!-- Theme Selection -->
+            <div style="background: var(--bg-card); padding: 18px; border-radius: 12px; border: 1px solid var(--border-color);">
+              <h3 style="margin-bottom: 12px; font-size: 1rem;">🎨 โทนสีหน้าตาเว็บ (Theme)</h3>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="chip theme-btn" data-set-theme="red">🔴 YouTube Red</button>
+                <button class="chip theme-btn" data-set-theme="cyan">🔵 Cyberpunk Cyan</button>
+                <button class="chip theme-btn" data-set-theme="emerald">🟢 Emerald Green</button>
+                <button class="chip theme-btn" data-set-theme="purple">🟣 Neon Violet</button>
+                <button class="chip theme-btn" data-set-theme="oled">⚫ OLED Pure Black</button>
+              </div>
+            </div>
+
+            <!-- Storage & Zero-Disk Cache Control -->
+            <div style="background: var(--bg-card); padding: 18px; border-radius: 12px; border: 1px solid var(--border-color);">
+              <h3 style="margin-bottom: 8px; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="hard-drive"></i>
+                <span>การจัดการพื้นที่ดิสก์ (Storage & Cache)</span>
+              </h3>
+              <p style="font-size: 0.85rem; color: #10b981; margin-bottom: 12px; font-weight: 500;">
+                ✔ เปิดใช้งานโหมดประหยัดพื้นที่ (Zero-Disk Mode): เพลงที่กดฟังปกติจะสตรีมสดเข้าหูฟัง ไม่เขียนไฟล์ลงดิสก์เด็ดขาด (0 MB)
+              </p>
+              <div style="background: var(--bg-surface); padding: 12px 16px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <div>พื้นที่เพลงในคลัง: <strong id="storage-total-used" style="color: var(--text-main);">0 MB</strong></div>
+                  <div style="color: var(--text-dim); font-size: 0.8rem; margin-top: 2px;">จำนวนเพลงที่ดาวน์โหลดไว้: <span id="storage-song-count">0</span> เพลง</div>
+                </div>
+                <button id="btn-clean-cache" class="chip" style="background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #f87171; cursor: pointer;">
+                  🗑️ ล้างแคชคืนพื้นที่
+                </button>
+              </div>
+            </div>
+
+            <!-- Google Drive & Storage Info -->
+            <div style="background: var(--bg-card); padding: 18px; border-radius: 12px; border: 1px solid var(--border-color);">
+              <h3 style="margin-bottom: 8px; font-size: 1rem;">☁️ การเชื่อมต่อ Google Drive / Local Storage</h3>
+              <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 14px;">
+                เพลงทุกเพลงที่กดดาวน์โหลดจะถูกเก็บในโฟลเดอร์เครื่องเซิร์ฟเวอร์ และคุณสามารถกดบันทึกตรงเข้ามือถือ หรือซิงก์เข้า Google Drive ผ่าน Web Link ได้ทันที
+              </p>
+              <div style="font-size: 0.85rem; color: var(--text-dim); background: var(--bg-surface); padding: 10px 14px; border-radius: 8px;">
+                โฟลเดอร์จัดเก็บ: <code>ytmusic-vault/downloads/</code>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- BOTTOM PERSISTENT PLAYER -->
+  <footer class="bottom-player" id="bottom-player">
+    <!-- Interactive Mobile Mini Scrubber -->
+    <div class="mini-scrubber-bar" id="mini-scrubber-bar" title="แตะหรือลากเพื่อเลื่อน/กรอเพลง">
+      <input type="range" class="mini-scrubber-range" id="mini-scrubber-range" min="0" max="100" value="0" step="0.1" aria-label="แถบกรอเพลง">
+      <div class="mini-scrubber-fill" id="mini-scrubber-fill"></div>
+    </div>
+
+    <!-- Left: Track info -->
+    <div class="player-left" id="player-left-panel">
+      <img src="https://i.ytimg.com/vi/mw3kSNIxjqo/hqdefault.jpg" alt="thumb" class="player-thumb" id="p-thumb">
+      <div class="player-track-info">
+        <div class="player-track-title" id="p-title">เลือกเพลงเพื่อเริ่มฟัง</div>
+        <div class="player-track-artist" id="p-artist">YouTube Music Vault</div>
+      </div>
+      <button class="player-like-btn" id="p-like-btn" title="ถูกใจ">
+        <i data-lucide="heart"></i>
+      </button>
+    </div>
+
+    <!-- Center: Playback Controls & Scrubber -->
+    <div class="player-center">
+      <div class="player-buttons">
+        <button class="player-btn" id="btn-shuffle" title="สุ่มเพลง">
+          <i data-lucide="shuffle"></i>
+        </button>
+        <button class="player-btn" id="btn-prev" title="เพลงก่อนหน้า">
+          <i data-lucide="skip-back"></i>
+        </button>
+        <button class="play-pause-btn" id="btn-play-pause" title="เล่น/หยุด">
+          <i data-lucide="play" id="icon-play-pause"></i>
+        </button>
+        <button class="player-btn" id="btn-next" title="เพลงถัดไป">
+          <i data-lucide="skip-forward"></i>
+        </button>
+        <button class="player-btn" id="btn-repeat" title="เล่นซ้ำ">
+          <i data-lucide="repeat"></i>
+        </button>
+      </div>
+
+      <div class="player-scrubber-row">
+        <span class="time-stamp" id="time-current">0:00</span>
+        <input type="range" class="scrubber-slider" id="player-scrubber" min="0" max="100" value="0">
+        <span class="time-stamp right" id="time-total">0:00</span>
+      </div>
+    </div>
+
+    <!-- Right: Volume, Lyrics & Fullscreen -->
+    <div class="player-right">
+      <div class="volume-wrapper">
+        <button class="player-btn" id="btn-mute" title="ปิด/เปิดเสียง">
+          <i data-lucide="volume-2" id="icon-volume"></i>
+        </button>
+        <input type="range" class="volume-slider" id="volume-slider" min="0" max="1" step="0.02" value="1">
+      </div>
+
+      <!-- Quick mobile actions -->
+      <div class="mobile-mini-controls">
+        <button class="player-btn" id="mini-btn-play-pause" title="เล่น/หยุด">
+          <i data-lucide="play" id="mini-icon-play-pause"></i>
+        </button>
+        <button class="player-btn" id="mini-btn-next" title="เพลงถัดไป">
+          <i data-lucide="skip-forward"></i>
+        </button>
+      </div>
+
+      <button class="player-btn desktop-only" id="btn-open-lyrics" title="เนื้อเพลง">
+        <i data-lucide="mic-2"></i>
+      </button>
+      <button class="player-btn desktop-only" id="btn-open-queue" title="คิวเพลง">
+        <i data-lucide="list-music"></i>
+      </button>
+      <button class="player-btn desktop-only" id="btn-fullscreen" title="ขยายหน้าจอเต็ม">
+        <i data-lucide="chevron-up"></i>
+      </button>
+    </div>
+  </footer>
+
+  <!-- MOBILE BOTTOM NAVIGATION -->
+  <nav class="mobile-nav-bar">
+    <div class="mobile-nav-item active" data-page="home">
+      <i data-lucide="home"></i>
+      <span>หน้าแรก</span>
+    </div>
+    <div class="mobile-nav-item" data-page="explore">
+      <i data-lucide="compass"></i>
+      <span>ค้นพบ</span>
+    </div>
+    <div class="mobile-nav-item" data-page="library">
+      <i data-lucide="library"></i>
+      <span>คลังเพลง</span>
+    </div>
+    <div class="mobile-nav-item" data-page="settings">
+      <i data-lucide="settings"></i>
+      <span>ตั้งค่า</span>
+    </div>
+  </nav>
+
+  <!-- FULLSCREEN / MOBILE NOW PLAYING SHEET -->
+  <div class="fullscreen-sheet" id="fullscreen-sheet">
+    <div class="ambient-glow-backdrop" id="ambient-glow-backdrop"></div>
+
+    <div class="sheet-header">
+      <button class="player-btn" id="btn-close-sheet">
+        <i data-lucide="chevron-down"></i>
+      </button>
+      <div style="font-weight: 600; font-size: 0.95rem;">กำลังเล่น</div>
+      <div style="display: flex; gap: 8px;">
+        <button class="player-btn" id="btn-karaoke-mode" title="คาราโอเกะ (ตัดเสียงร้อง)">
+          <i data-lucide="mic-off" id="icon-karaoke"></i>
+        </button>
+        <button class="player-btn" id="btn-sheet-download" title="ดาวน์โหลดเก็บไว้">
+          <i data-lucide="download"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="sheet-body">
+      <!-- Player Art & Mobile Scrubber & Controls -->
+      <div class="sheet-left-art">
+        <div class="big-art-box" id="sheet-media-box">
+          <img src="" id="sheet-art" alt="cover">
+          <div id="yt-player-wrapper" style="position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 18px; overflow: hidden; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; background: #000;">
+            <div id="yt-player-embed" style="width: 100%; height: 100%;"></div>
+          </div>
+        </div>
+
+        <!-- Mode switcher (Song vs Video MV) -->
+        <div style="display: flex; justify-content: center; margin: 8px 0 4px;">
+          <button id="btn-toggle-video-mode" class="chip" style="font-size: 0.75rem; padding: 4px 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+            <span id="label-media-mode">🎵 โหมดเพลง (Audio)</span>
+          </button>
+        </div>
+
+        <!-- Song info & Heart -->
+        <div class="sheet-track-details">
+          <div style="overflow: hidden; flex: 1;">
+            <h2 id="sheet-title" class="sheet-song-title">ชื่อเพลง</h2>
+            <p id="sheet-artist" class="sheet-song-artist">ชื่อศิลปิน</p>
+          </div>
+          <button class="player-like-btn" id="sheet-like-btn" title="ถูกใจ">
+            <i data-lucide="heart"></i>
+          </button>
+        </div>
+
+        <!-- Live Audio Frequency Visualizer -->
+        <canvas id="audio-visualizer" width="360" height="36" style="width: 100%; max-width: 380px; height: 36px; margin: 4px 0 10px; border-radius: 6px;"></canvas>
+
+        <!-- Scrubber for Mobile & Fullscreen (กอเพลง / เลื่อนเวลา) -->
+        <div class="sheet-scrubber-container">
+          <div class="player-scrubber-row">
+            <span class="time-stamp" id="sheet-time-current">0:00</span>
+            <input type="range" class="scrubber-slider" id="sheet-player-scrubber" min="0" max="100" value="0">
+            <span class="time-stamp right" id="sheet-time-total">0:00</span>
+          </div>
+        </div>
+
+        <!-- Playback Controls (Shuffle, Prev, Big Play/Pause, Next, Repeat) -->
+        <div class="sheet-controls-row">
+          <button class="player-btn" id="sheet-btn-shuffle" title="สุ่มเพลง">
+            <i data-lucide="shuffle"></i>
+          </button>
+          <button class="player-btn" id="sheet-btn-prev" title="เพลงก่อนหน้า">
+            <i data-lucide="skip-back" style="width: 26px; height: 26px;"></i>
+          </button>
+          <button class="play-pause-btn big-play-circle" id="sheet-btn-play-pause" title="เล่น/หยุด">
+            <i data-lucide="play" id="sheet-icon-play-pause" style="width: 28px; height: 28px;"></i>
+          </button>
+          <button class="player-btn" id="sheet-btn-next" title="เพลงถัดไป">
+            <i data-lucide="skip-forward" style="width: 26px; height: 26px;"></i>
+          </button>
+          <button class="player-btn" id="sheet-btn-repeat" title="เล่นซ้ำ">
+            <i data-lucide="repeat"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Right: Tabs (Lyrics / Queue / AI Story) -->
+      <div class="sheet-right-tabs">
+        <div class="sheet-tab-nav">
+          <button class="sheet-tab-btn active" data-tab="lyrics">เนื้อเพลงตรงจังหวะ (Lyrics)</button>
+          <button class="sheet-tab-btn" data-tab="queue">เพลงถัดไป (Queue)</button>
+          <button class="sheet-tab-btn" data-tab="story">✨ เรื่องราวเพลง (AI Story)</button>
+        </div>
+
+        <!-- Synced Lyrics Pane (Default) -->
+        <div class="tab-pane-content" id="pane-lyrics">
+          <div id="lyrics-status-badge" style="font-size: 0.75rem; color: #10b981; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+            <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></span>
+            <span id="lyrics-status-text">เนื้อเพลงตรงจังหวะ (Synced Karaoke)</span>
+          </div>
+          <div id="synced-lyrics-container" class="synced-lyrics-scroll">
+            <div style="color: var(--text-dim); text-align: center; padding: 40px;">กำลังโหลดเนื้อเพลงตรงจังหวะ...</div>
+          </div>
+          <div class="lyrics-text" id="lyrics-container" style="display: none;"></div>
+        </div>
+
+        <!-- Queue Pane -->
+        <div class="tab-pane-content" id="pane-queue" style="display: none;">
+          <div class="song-list-table" id="queue-list-table">
+            <!-- Queue items -->
+          </div>
+        </div>
+
+        <!-- AI Story Pane -->
+        <div class="tab-pane-content" id="pane-story" style="display: none;">
+          <div id="ai-story-content" style="padding: 10px 4px; line-height: 1.8;">
+            <div style="color: var(--text-dim); text-align: center; padding: 40px;">กำลังวิเคราะห์เรื่องราวของเพลงด้วย AI...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI DJ MODAL -->
+  <div class="modal-overlay" id="modal-ai-dj">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i data-lucide="sparkles" style="color: #c084fc;"></i>
+          <span>AI DJ ผู้ช่วยแนะนำเพลงตามอารมณ์</span>
+        </div>
+        <button class="modal-close-btn" id="btn-close-ai-dj">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 16px;">
+        บอกอารมณ์หรือสถานการณ์ที่คุณกำลังทำอยู่ แล้วให้ AI จัดเพลย์ลิสต์เพลงที่ตรงใจคุณที่สุดให้ฟังทันที:
+      </p>
+
+      <div class="ai-dj-tags">
+        <button class="ai-dj-tag" data-prompt="เพลงอกหัก ซึ้งๆ เศร้าๆ ยุค 90-2000">🌧️ อกหัก ซึ้งๆ เศร้าๆ</button>
+        <button class="ai-dj-tag" data-prompt="เพลงขับรถตอนกลางคืน ชิลๆ chill drive">🚗 ขับรถกลางคืน Chill Drive</button>
+        <button class="ai-dj-tag" data-prompt="เพลงฟังสบาย ร้านกาแฟ Acoustic ชิลๆ">☕ ร้านกาแฟ Acoustic ฟังสบาย</button>
+        <button class="ai-dj-tag" data-prompt="เพลงร็อค ปลุกพลัง workout มันส์ๆ">⚡ Workout บูสต์พลัง ออกกำลังกาย</button>
+        <button class="ai-dj-tag" data-prompt="เพลงอ่านหนังสือ โฟกัส สมาธิ lofi beats">📖 อ่านหนังสือ โฟกัสสมาธิ</button>
+        <button class="ai-dj-tag" data-prompt="เพลงรักโรแมนติก หวานซึ้ง อบอุ่นหัวใจ">💖 รักหวานซึ้ง อบอุ่นหัวใจ</button>
+      </div>
+
+      <div class="ai-dj-input-box">
+        <input type="text" id="ai-dj-prompt-input" class="ai-dj-input" placeholder="หรือพิมพ์บอก AI DJ เช่น 'อยากฟังเพลงเหงาๆ ริมระเบียง'...">
+        <button id="btn-submit-ai-dj" class="ai-dj-submit-btn">
+          <i data-lucide="play" style="width: 16px; height: 16px;"></i>
+          <span>สร้างคิว</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast-notification" class="toast-notice"></div>
+
+  <!-- HIDDEN AUDIO ELEMENT -->
+  <audio id="audio-engine" preload="auto"></audio>
+
+  <!-- MAIN SCRIPT -->
+  <script src="/app.js?v=4"></script>
+</body>
+</html>
