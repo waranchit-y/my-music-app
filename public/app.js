@@ -835,6 +835,16 @@ function renderPlaylists() {
       sidebarContainer.appendChild(link);
     }
   });
+
+  // Populate Home page showcase with songs from the main playlist
+  const homeSongsList = document.getElementById('home-songs-list');
+  if (homeSongsList && state.playlists[0]?.songs) {
+    renderSongList(state.playlists[0].songs.slice(0, 30), homeSongsList);
+  }
+  const btnHomeViewAll = document.getElementById('btn-home-view-all');
+  if (btnHomeViewAll && state.playlists[0]) {
+    btnHomeViewAll.onclick = () => openPlaylistDetail(state.playlists[0]);
+  }
 }
 
 function createPlaylistCard(pl) {

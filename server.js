@@ -154,6 +154,62 @@ function saveSettings(settings) {
   }
 }
 
+// Helper: Pure JS YouTube Web Search Scraper (Fast, 100% Linux/Render compatible)
+async function searchYouTubeWeb(query, limit = 15) {
+  try {
+    const res = await axios.get(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+        'Accept-Language': 'th,en-US;q=0.9,en;q=0.8'
+      },
+      timeout: 8000
+    });
+    const match = res.data.match(/ytInitialData\s*=\s*({.+?});<\/script>/);
+    if (!match) return [];
+    const data = JSON.parse(match[1]);
+    const contents = data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || [];
+    const items = [];
+    for (const section of contents) {
+      const sectionItems = section.itemSectionRenderer?.contents || [];
+      for (const item of sectionItems) {
+        if (item.videoRenderer && items.length < limit) {
+          const v = item.videoRenderer;
+          items.push({
+            id: v.videoId,
+            title: v.title?.runs?.[0]?.text || 'Unknown Title',
+            channel: v.ownerText?.runs?.[0]?.text || 'YouTube Artist',
+            duration: 0,
+            durationFormatted: v.lengthText?.simpleText || '3:30',
+            thumbnail: v.thumbnail?.thumbnails?.slice(-1)[0]?.url || `https://i.ytimg.com/vi/${v.videoId}/hqdefault.jpg`,
+            views: 0
+          });
+        }
+      }
+    }
+    return items;
+  } catch (err) {
+    console.error('searchYouTubeWeb error:', err.message);
+    return [];
+  }
+}
+
+function getFallbackSongs(query = '', limit = 15) {
+  const playlists = readPlaylists();
+  let allSongs = [];
+  playlists.forEach(pl => {
+    if (Array.isArray(pl.songs)) allSongs.push(...pl.songs);
+  });
+  if (query) {
+    const qLower = query.toLowerCase();
+    const filtered = allSongs.filter(s => 
+      (s.title && s.title.toLowerCase().includes(qLower)) || 
+      (s.channel && s.channel.toLowerCase().includes(qLower))
+    );
+    if (filtered.length > 0) return filtered.slice(0, limit);
+  }
+  return allSongs.slice(0, limit);
+}
+
 // -------------------------------------------------------------
 // 1. SEARCH ENDPOINT
 // -------------------------------------------------------------
@@ -173,67 +229,13 @@ app.get('/api/search', async (req, res) => {
     }
   }
 
-  const args = [
-    '--js-runtimes', `node:${NODE_PATH}`,
-    `ytsearch${limit}:${query}`,
-    '--dump-json',
-    '--flat-playlist',
-    '--no-warnings',
-    '--ignore-errors'
-  ];
+  let results = await searchYouTubeWeb(query, limit);
+  if (!results || results.length === 0) {
+    results = getFallbackSongs(query, limit);
+  }
 
-  const child = spawn(YT_DLP_PATH, args, { windowsHide: true });
-  let stdoutData = '';
-  let stderrData = '';
-
-  child.stdout.on('data', chunk => {
-    stdoutData += chunk.toString();
-  });
-
-  child.stderr.on('data', chunk => {
-    stderrData += chunk.toString();
-  });
-
-  child.on('close', code => {
-    const results = [];
-    const lines = stdoutData.split('\n');
-
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      try {
-        const item = JSON.parse(line);
-        if (item.id && item.title) {
-          // Find best thumbnail
-          let thumb = '';
-          if (Array.isArray(item.thumbnails) && item.thumbnails.length > 0) {
-            thumb = item.thumbnails[item.thumbnails.length - 1].url;
-          } else {
-            thumb = `https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`;
-          }
-
-          results.push({
-            id: item.id,
-            title: item.title,
-            channel: item.channel || item.uploader || 'YouTube Artist',
-            duration: item.duration || 0,
-            durationFormatted: item.duration_string || formatDuration(item.duration || 0),
-            thumbnail: thumb,
-            views: item.view_count || 0
-          });
-        }
-      } catch (e) {
-        // Ignore single malformed lines
-      }
-    }
-
-    searchCache.set(cacheKey, { timestamp: Date.now(), results });
-    res.json(results);
-  });
-
-  child.on('error', err => {
-    console.error('Search spawn error:', err);
-    res.status(500).json({ error: 'Failed to execute search engine' });
-  });
+  searchCache.set(cacheKey, { timestamp: Date.now(), results });
+  res.json(results);
 });
 
 // -------------------------------------------------------------
@@ -243,63 +245,23 @@ app.get('/api/trending', async (req, res) => {
   const category = req.query.category || 'thai';
   let query = 'เพลงฮิตไทยล่าสุด';
 
-  if (category === 'global') query = 'Global Top Hits Song';
+  if (category === 'global') query = 'Global Top Hits Songs 2026';
   else if (category === 'chill') query = 'เพลงฟังสบายๆ ชิลๆ acoustic';
-  else if (category === 'focus') query = 'Lofi hip hop beats to study/relax to';
-  else if (category === 'workout') query = 'Workout Motivation Music';
+  else if (category === 'focus') query = 'Lofi hip hop beats to study relax';
+  else if (category === 'workout') query = 'Workout Motivation Music 2026';
 
   const cacheKey = `trending_${category}`;
   if (searchCache.has(cacheKey)) {
     return res.json(searchCache.get(cacheKey).results);
   }
 
-  const args = [
-    '--js-runtimes', `node:${NODE_PATH}`,
-    `ytsearch12:${query}`,
-    '--dump-json',
-    '--flat-playlist',
-    '--no-warnings'
-  ];
+  let results = await searchYouTubeWeb(query, 12);
+  if (!results || results.length === 0) {
+    results = getFallbackSongs(category === 'thai' ? '' : category, 12);
+  }
 
-  const child = spawn(YT_DLP_PATH, args, { windowsHide: true });
-  let stdoutData = '';
-
-  child.stdout.on('data', chunk => {
-    stdoutData += chunk.toString();
-  });
-
-  child.on('close', () => {
-    const results = [];
-    const lines = stdoutData.split('\n');
-
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      try {
-        const item = JSON.parse(line);
-        if (item.id && item.title) {
-          let thumb = '';
-          if (Array.isArray(item.thumbnails) && item.thumbnails.length > 0) {
-            thumb = item.thumbnails[item.thumbnails.length - 1].url;
-          } else {
-            thumb = `https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`;
-          }
-
-          results.push({
-            id: item.id,
-            title: item.title,
-            channel: item.channel || item.uploader || 'YouTube Artist',
-            duration: item.duration || 0,
-            durationFormatted: item.duration_string || formatDuration(item.duration || 0),
-            thumbnail: thumb,
-            views: item.view_count || 0
-          });
-        }
-      } catch (e) {}
-    }
-
-    searchCache.set(cacheKey, { timestamp: Date.now(), results });
-    res.json(results);
-  });
+  searchCache.set(cacheKey, { timestamp: Date.now(), results });
+  res.json(results);
 });
 
 // -------------------------------------------------------------

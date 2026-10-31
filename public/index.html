@@ -112,7 +112,16 @@
             <!-- Dynamically populated -->
           </div>
 
-          <div class="section-title">
+          <!-- All Favorite Songs Showcase on Home -->
+          <div class="section-title" style="display: flex; justify-content: space-between; align-items: center; margin-top: 36px;">
+            <span>คลังเพลงโปรดของคุณ (263 เพลง)</span>
+            <button id="btn-home-view-all" class="chip" style="font-size: 0.8rem; cursor: pointer; padding: 4px 14px; background: var(--bg-card); border: 1px solid var(--border-color);">ดูทั้งหมด 263 เพลง ➔</button>
+          </div>
+          <div class="song-list-table" id="home-songs-list">
+            <!-- First 30 songs ready to play right on home screen! -->
+          </div>
+
+          <div class="section-title" style="margin-top: 36px;">
             <span>ฟังต่อจากที่ค้างไว้</span>
           </div>
           <div class="song-list-table" id="recent-list">
